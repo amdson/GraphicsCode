@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" href="BondCSS.css">
+	</head>
+	<body>
+
+		<h1 style="color:red;" >Nodework</h1>
+		<p>
+			<input onclick="startstop()" type="button" value="Start" id="myButton1" />
+			<input onclick="shiftMode()" type="button" value="Create" id="ModeStatus" />
+			<input onclick="reset()" type="button" value="Reset" id="ApocalypseButton" />
+		</p>
+
+		<canvas id="myCanvas" width="800" height="500" onmousemove="findMouse(event)"  
+			> </canvas>
+		<h3 id = "MakeshiftConsole">Let's see</h3>
+		<h3 id = "MakeshiftConsole2">Let's see</h3>
+		<h3 id = "MouseCoords"> (0, 0) </h3>
+		<h3 id = "MouseDown"> Mouse is up </h3>
+		<h3 id = "CreateModeStatus"> Creator's Block Active </h3>
+		<h3 id = "ArrowStatus"> Jack </h3>
+		<script> 
+		var counter = 0;
+		function Node(v) {
+			this.pos = v;
+			this.connected = [];
+			this.traced = false;
+			this.identifier = counter;
+			counter += 1;
+		}
+		Node.prototype.connect = function(node) {
+			this.connected.push(node);
+			node.connected.push(this);
+		}
+		Node.prototype.cut = function(node) {
+			for(var i = 0; i < this.connected.length; i++) {
+				if(this.connected[i].identifier = node.identifier) {
+					this.connected.splice(i, 1);
+					break;
+				}
+			}
+		}
+
+		function Vector(x, y) {
+			this.x = x;
+			this.y = y;
+		}
+		Object.defineProperty(Vector.prototype, "length", {
+  		get: function() { return Math.sqrt(this.x*this.x+this.y*this.y); },
+			set: function(length) {
+				var len = this.length;
+				this.x = this.x/len*length;
+				this.y = this.y/len*length;
+			}
+		});
+
+		Vector.prototype.addn = function(v, n) {
+			if(!n)
+				n = 1;
+			return (new Vector(this.x+v.x*n, this.y+v.y*n));
+		}
+
+		Vector.prototype.mult = function(n) {
+			return (new Vector(this.x*n, this.y*n));
+		}
+		Vector.prototype.dot = function(v) {
+			return (this.x*v.x+this.y*v.y);
+		}
+		Vector.prototype.cross = function(v) {
+			return (this.y*v.x-this.x*v.y);
+		}
+		Vector.prototype.proj = function(v) {
+			var u = v.mult(1/v.length);
+			return u.mult(this.dot(u));
+		}
+		
+		function getIntersection(p, rp, q, sq) {
+			//input segment endpoints
+			//return false if no intersection, or position of intersection
+			var r = addn(rp, p, -1);
+			var s = addn(sq, q, -1);
+			if(cross(r, s) >-0.001 && cross(r, s) < 0.001) {
+				return false;
+			}
+			else {
+				var t = cross(addn(q, p, -1), s)/cross(r, s);
+				var u = cross(addn(p, q, -1), r)/cross(s, r);
+			}
+			if(t >= 0 && u >= 0 && t <= 1 && u <= 1) {
+				return addn(p, r, t);
+			}
+			else {
+				return false;
+			}
+		}
+
+		var running = false;
+		var iterator;
+		
+		var c = document.getElementById("myCanvas");
+		c.addEventListener("mousedown", mouseDown, false);
+		c.addEventListener("mouseup", mouseUp, false);
+		var ctx = c.getContext("2d");
+		ctx.strokeStyle = "#000000";
+		var rect = c.getBoundingClientRect();
+
+		var mouseX = 50;
+		var mouseY = 50;
+		var mousedown = false;
+		var mode = 0;
+		var up = false, right = false, down = false, left = false;
+		var w = false, d = false, s = false, a = false;
+
+		var nodes = [Node(200, 300), Node(400, 300)];
+		nodes[0].connect(nodes[1]);
+		var p1 = {host:nodes[0]};
+		var p2 = {host:nodes[1]};
+		var anchors = [];
+		
+
+		function findMouse(e)
+		{
+			mouseX = e.clientX - rect.left;
+			mouseY = e.clientY - rect.top; 
+			//document.getElementById("MouseCoords").innerHTML = "("+mouseX+", "+mouseY+")";
+		}
+		
+		function mouseDown()
+		{
+			mousedown = true; 
+			document.getElementById("MouseDown").innerHTML = "Mouse is down. Repeat. Mouse is down.";
+			if(anchors.length == 0) {
+				anchors.push(new Vector(mouseX, mouseY));
+			} else {
+				var iscts = [];
+				if(nodes.length > 0)
+					iscts = findIntersection(nodes[0]);
+				for(var i = 0; i < nodes.length; i++) {
+					nodes[i].traced = false;
+				}
+				for(var i = 0; i < nodes.length; i++) {
+					node = nodes[i];
+					node.traced = true;
+					for(var j = 0; j < node.connected.length; j++) {
+						var node_b = node.connected[j];
+						if(node_b.traced) {
+							continue;
+						}
+						var isct = getIntersection(anchors[0], anchors[1], node.pos, node_b.pos);
+						if(isct) {
+							var placeholder = [node, node_b, isct];
+							iscts.push(placeholder);
+						}
+					}
+				}
+				if(iscts.length > 0) {
+					var mindist = Inf;
+					var minindex = 0;
+					for(var i = 0; i < iscts.length; i++) {
+						var dist = addn(iscts[2], anchor[0], -1).length;
+						if(dist < mindist) {
+							mindist = dist;
+							minindex = i;
+						}
+					}
+					iscts[minindex][0].cut(iscts[minindex][1]);
+					iscts[minindex][1].cut(iscts[minindex][0]);
+				} else {
+					anchors = [];
+				}
+				for(var i = 0; i < nodes.length; i++) {
+					nodes[i].traced = false;
+				}
+			}
+		}
+		
+		function mouseUp()
+		{
+			mousedown = false;
+			document.getElementById("MouseDown").innerHTML = "Mouse is up.";
+		}
+		
+		document.onkeydown = function (e) {
+			e = e || window.event;
+			 var event = window.event ? window.event : e;
+			 if (event.keyCode == '38') {
+				// up arrow
+				up = true;
+				document.getElementById("ArrowStatus").innerHTML = "Up";
+				}
+			else if (event.keyCode == '40') {
+				// down arrow
+				down = true;
+				document.getElementById("ArrowStatus").innerHTML = "Down";
+			}
+			else if (event.keyCode == '37') {
+				// left arrow
+				left = true;
+				document.getElementById("ArrowStatus").innerHTML = "Left";
+			}
+			else if (event.keyCode == '39') {
+				// right arrow
+				right = true;
+				document.getElementById("ArrowStatus").innerHTML = "Right";
+			}
+			
+			else if (event.keyCode == '87') {
+				// w
+				w = true;
+				document.getElementById("ArrowStatus").innerHTML = "Up";
+				}
+			else if (event.keyCode == '83') {
+				// s
+				s = true;
+				document.getElementById("ArrowStatus").innerHTML = "Down";
+			}
+			else if (event.keyCode == '65') {
+				// a
+				a = true;
+				document.getElementById("ArrowStatus").innerHTML = "Left";
+			}
+			else if (event.keyCode == '68') {
+				// d
+				d = true;
+				document.getElementById("ArrowStatus").innerHTML = "Right";
+			}
+			
+		};
+		document.onkeyup = function (e) {
+			e = e || window.event;
+			 if (e.keyCode == '38') {
+				// up arrow
+				up = false;
+				document.getElementById("ArrowStatus").innerHTML = "Jack";
+				}
+			else if (e.keyCode == '40') {
+				// down arrow
+				down = false;
+				document.getElementById("ArrowStatus").innerHTML = "Jack";
+			}
+			else if (e.keyCode == '37') {
+				// left arrow
+				left = false;
+				document.getElementById("ArrowStatus").innerHTML = "Jack";
+			}
+			else if (e.keyCode == '39') {
+				// right arrow
+				right = false;
+				document.getElementById("ArrowStatus").innerHTML = "Jack";
+			}
+			else if (event.keyCode == '87') {
+				// w
+				w = false;
+				
+				}
+			else if (event.keyCode == '83') {
+				// s
+				s = false;
+				
+			}
+			else if (event.keyCode == '65') {
+				// a
+				a = false;
+				
+			}
+			else if (event.keyCode == '68') {
+				// d
+				d = false;
+				
+			}
+		};
+		
+		//Manage whether the update event is being called
+		function startstop()
+		{
+			running = !running;
+			if(running){
+				iterator = setInterval(update, 40);
+				document.getElementById("myButton1").value = "Stop";
+			}
+			else{
+				clearInterval(iterator);
+				document.getElementById("myButton1").value = "Start";
+			}	
+		}
+		
+		//Create a frame of animation
+		function redraw()
+		{
+			//Clear canvas
+			ctx.clearRect(0,0,c.width,c.height);
+			//Draw nodes and the connections between them
+			ctx.strokeStyle = "brown";
+			for(var n = 0; n < nodes.length; n++)
+			{
+				for(var k = 0; k < nodes[n].connected.length; k++)
+				{
+					var c2node = nodes[nodes[n].connected[k]];
+					ctx.beginPath();
+					ctx.moveTo(nodes[n].x,nodes[n].y);
+					ctx.lineTo(c2node.x, c2node.y);
+					ctx.stroke();
+				}
+			}
+				
+			/*	
+			ctx.beginPath();
+			ctx.arc(nodes[n].xpos, nodes[n].ypos, 10,0,2*Math.PI);
+			ctx.stroke();
+			*/
+			
+		}
+		
+		//handle all the physics
+		function update(){
+			document.getElementById("MouseCoords").innerHTML = "("+mouseX+", "+mouseY+")";
+			
+			var xforce = 0;
+			var yforce = 0;
+			var sxvel = 0;
+			var syvel = 0;
+			var cxpos = 0;
+			var cypos = 0;
+			var cxvel = 0;
+			var cyvel = 0;
+			var xdist = 0;
+			var ydist = 0;
+			var distance = 0;
+			var delta = 0;
+			
+			var xdist2 = 0
+			var ydist2 = 0;
+			var distance2 = 0; 
+			
+			for(var i =0; i< nodes.length; i++)
+			{
+				nodes[i].nextxvel = nodes[i].xvel;
+				nodes[i].nextyvel = nodes[i].yvel;
+			}
+			
+			//Add force to selected nodes
+			for(var j = 0; j < controllable.length; j++)
+			{
+				if(up)
+				{nodes[controllable[j]].nextyvel -= 0.5}
+				if(down)
+				{nodes[controllable[j]].nextyvel += 0.5}
+				if(right)
+				{nodes[controllable[j]].nextxvel += 0.5}
+				if(left)
+				{nodes[controllable[j]].nextxvel -= 0.5}
+			}
+			
+			for(var j = 0; j < controllable2.length; j++)
+			{
+				if(w)
+				{nodes[controllable2[j]].nextyvel -= 0.5}
+				if(s)
+				{nodes[controllable2[j]].nextyvel += 0.5}
+				if(d)
+				{nodes[controllable2[j]].nextxvel += 0.5}
+				if(a)
+				{nodes[controllable2[j]].nextxvel -= 0.5}
+			}
+			
+			
+			
+			for(var i = 0; i < nodes.length; i++)
+			{
+				xforce = 0;
+				yforce = 0;
+				
+				
+				//Calculate forces on nodes from springs
+				for(var j = 0; j < nodes[i].connected.length; j++)
+				{
+					var cnode = nodes[ nodes[i].connected[j][0] ];
+					cxpos = cnode.xpos;
+					cypos = cnode.ypos;
+					xdist = cxpos-nodes[i].xpos;
+					ydist = cypos-nodes[i].ypos;
+					distance = Math.sqrt((xdist)*(xdist)+
+					(ydist)*(ydist));
+					delta = distance - nodes[i].connected[j][1];
+
+					xforce += (delta*xdist/distance)/5;
+					yforce += (delta*ydist/distance)/5;
+					
+					//Calculate and subtract relative velocities for friction
+					sxvel = nodes[i].xvel;
+					syvel = nodes[i].yvel;
+					cxvel = cnode.xvel;
+					cyvel = cnode.yvel;
+					//var xtax = (sxvel+syvel+xdist+ydist+distance+cxvel+cyvel)/500;
+					//var ytax = 0;
+					
+					var xtax = (sxvel*xdist+syvel*ydist)/(distance*distance)*xdist-
+								(cxvel*xdist+cyvel*ydist)/(distance*distance)*xdist;
+								
+					var ytax = (sxvel*xdist+syvel*ydist)/(distance*distance)*ydist-
+								(cxvel*xdist+cyvel*ydist)/(distance*distance)*ydist;
+						
+					nodes[i].nextxvel -= (0.06*xtax);
+					nodes[i].nextyvel -= (0.06*ytax/* - 0.05*/);
+				}
+				
+				
+				
+				
+				//Add force from mousedown to nodes
+				xdist2 = 0
+				ydist2 = 0;
+				distance2 = 0; 
+				if(mousedown)
+				{
+					document.getElementById("MakeshiftConsole").innerHTML = "Mouse pulls inexorably";
+					
+					xdist2 = mouseX-nodes[i].xpos;
+					ydist2 = mouseY-nodes[i].ypos;
+					distance2 = Math.sqrt((xdist2)*(xdist2)+
+					(ydist2)*(ydist2));
+					
+					xforce += (xdist2)/distance2;
+					yforce += (ydist2)/distance2;
+				}
+				else
+				{	
+					document.getElementById("MakeshiftConsole").innerHTML = "Mouse doesn't do much.";
+				}
+				
+				//Update next velocity from forces
+				nodes[i].nextxvel += xforce;
+				nodes[i].nextyvel += yforce;
+				
+				//Bounce nodes which are hitting the edges of canvas
+				if(nodes[i].xpos <15 || nodes[i].xpos > 785)
+				{
+					nodes[i].nextxvel = 0;
+					if(nodes[i].xpos <15)
+					{nodes[i].xpos = 16;}
+					else{nodes[i].xpos = 784;}
+				}
+				if(nodes[i].ypos <15 || nodes[i].ypos > 485)
+				{
+					nodes[i].nextyvel = 0;
+					if(nodes[i].ypos <15)
+					{nodes[i].ypos = 16;}
+					else{nodes[i].ypos = 484;}
+				}
+				//nodes[i].xvel *= 0.99;
+				//nodes[i].yvel *= 0.99;
+			}
+			
+			//Update positions from velocities
+			for(var n = 0; n < nodes.length; n++)
+			{
+				nodes[n].xvel = nodes[n].nextxvel;
+				nodes[n].yvel = nodes[n].nextyvel;
+				nodes[n].xpos += nodes[n].xvel;
+				nodes[n].ypos += nodes[n].yvel;
+			}
+			redraw();
+		}
+
+		//connect two nodes
+		function connect(index1, index2)
+		{
+			var xpos1 = nodes[index1].xpos;
+			var ypos1 = nodes[index1].ypos;
+			var xpos2 = nodes[index2].xpos;
+			var ypos2 = nodes[index2].ypos;
+			
+			var xdist = xpos1-xpos2;
+			var ydist = ypos1-ypos2;
+			var distance = Math.sqrt((xdist)*(xdist)+
+				(ydist)*(ydist));
+			nodes[index1].connected.push([index2, distance]);
+			nodes[index2].connected.push([index1, distance]);
+		}
+		
+		//Delete everything, clear the canvas
+		function reset()
+		{
+			nodes = [];
+			selected = [];
+			controllable = [];
+			redraw();
+		}
+		
+		</script>
+
+	</body>
+</html>

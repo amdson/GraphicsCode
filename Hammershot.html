@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" href="BondCSS.css">
+	</head>
+	<body>
+
+		<h1 style="color:red;" >Bouncy Bonds</h1>
+		<p>
+			<input onclick="startstop()" type="button" value="Start" id="myButton1" />
+			<input onclick="shiftMode()" type="button" value="Create" id="ModeStatus" />
+			<input onclick="reset()" type="button" value="Reset" id="ApocalypseButton" />
+		</p>
+
+		<canvas id="myCanvas" width="800" height="500" onmousemove="findMouse(event)"  
+			> </canvas>
+		<h3 id = "MouseCoords"> (0, 0) </h3>
+		<h3 id = "MouseDown"> Mouse is up </h3>
+		<script> 
+		function Vector(x, y) {
+			this.x = x;
+			this.y = y;
+		}
+		Object.defineProperty(Vector.prototype, "length", {
+  		get: function() { return Math.sqrt(this.x*this.x+this.y*this.y); },
+			set: function(length) {
+				var len = this.length;
+				this.x = this.x/len*length;
+				this.y = this.y/len*length;
+			}
+		});
+
+		Vector.prototype.addn = function(v, n) {
+			if(!n)
+				n = 1;
+			return (new Vector(this.x+v.x*n, this.y+v.y*n));
+		}
+
+		Vector.prototype.mult = function(n) {
+			return (new Vector(this.x*n, this.y*n));
+		}
+		Vector.prototype.dot = function(v) {
+			return (this.x*v.x+this.y*v.y);
+		}
+		Vector.prototype.cross = function(v) {
+			return (this.y*v.x-this.x*v.y);
+		}
+		Vector.prototype.proj = function(v) {
+			var u = v.mult(1/v.length);
+			return u.mult(this.dot(u));
+		}
+
+		var running = false;
+		var iterator;
+		
+		var c = document.getElementById("myCanvas");
+		c.addEventListener("mousedown", mouseDown, false);
+		c.addEventListener("mouseup", mouseUp, false);
+		var ctx = c.getContext("2d");
+		ctx.strokeStyle = "#000000";
+		var rect = c.getBoundingClientRect();
+
+		var mouseX = 50;
+		var mouseY = 50;
+		var mousedown = false;
+		var mode = 0;
+		var up = false, right = false, down = false, left = false;
+		var w = false, d = false, s = false, a = false;
+		var spacebar = false;
+
+		var player = {"pos": new Vector(30, 30), "vel": new Vector(0, 0), "theta": 0, "omega": 0, 
+			"impulse": new Vector(0, 0), "mass": 20, "mass_1": 5, "length": 80, "mass_2": 15};
+
+		function hitWall(p, x1, x2) {
+			var line = x1.addn(x2, -1);
+			var par = p.vel.proj(line);
+			return par.addn(p.addn(par, -1), -1)
+		}
+
+		
+		function findMouse(e)
+		{
+			mouseX = e.clientX - rect.left;
+			mouseY = e.clientY - rect.top; 
+			//document.getElementById("MouseCoords").innerHTML = "("+mouseX+", "+mouseY+")";
+		}
+		
+		function mouseDown()
+		{
+			mousedown = true; 
+		}
+		
+		function mouseUp()
+		{
+			mousedown = false;
+			document.getElementById("MouseDown").innerHTML = "Mouse is up.";
+		}
+		
+		document.onkeydown = function (e) {
+			e = e || window.event;
+			 var event = window.event ? window.event : e;
+			 if (event.keyCode == '38') {
+				// up arrow
+				up = true;
+				e.preventDefault();
+				}
+			else if (event.keyCode == '40') {
+				// down arrow
+				down = true;
+				e.preventDefault();
+			}
+			else if (event.keyCode == '37') {
+				// left arrow
+				left = true;
+				e.preventDefault();
+			}
+			else if (event.keyCode == '39') {
+				// right arrow
+				right = true;
+				e.preventDefault();
+			}
+			
+			else if (event.keyCode == '87') {
+				// w
+				w = true;
+				}
+			else if (event.keyCode == '83') {
+				// s
+				s = true;
+			}
+			else if (event.keyCode == '65') {
+				// a
+				a = true;
+			}
+			else if (event.keyCode == '68') {
+				// d
+				d = true;
+			}
+			else if (event.keyCode == '32') {
+				// d
+				spacebar = true;
+				e.preventDefault();
+			}
+			
+		};
+		document.onkeyup = function (e) {
+			e = e || window.event;
+			 if (e.keyCode == '38') {
+				// up arrow
+				up = false;
+				}
+			else if (e.keyCode == '40') {
+				// down arrow
+				down = false;
+			}
+			else if (e.keyCode == '37') {
+				// left arrow
+				left = false;
+			}
+			else if (e.keyCode == '39') {
+				// right arrow
+				right = false;
+			}
+			else if (event.keyCode == '87') {
+				// w
+				w = false;
+				
+				}
+			else if (event.keyCode == '83') {
+				// s
+				s = false;
+				
+			}
+			else if (event.keyCode == '65') {
+				// a
+				a = false;
+				
+			}
+			else if (event.keyCode == '68') {
+				// d
+				d = false;
+				
+			}
+			else if (event.keyCode == '32') {
+				// d
+				spacebar = false;
+				e.preventDefault();
+			}
+		};
+		
+		//Manage whether the update event is being called
+		function startstop()
+		{
+			running = !running;
+			if(running){
+				iterator = setInterval(update, 40);
+				document.getElementById("myButton1").value = "Stop";
+			}
+			else{
+				clearInterval(iterator);
+				document.getElementById("myButton1").value = "Start";
+			}	
+		}
+		
+		//Create a frame of animation
+		function redraw()
+		{
+			//Clear canvas
+			ctx.clearRect(0,0,c.width,c.height);
+			//Draw nodes and the connections between them
+			ctx.strokeStyle = "brown";
+			var x = player.pos.x;
+			var y = player.pos.y;
+			var theta = player.theta;
+			var length = player.length;
+			
+			ctx.beginPath();
+			ctx.arc(x, y, 5,0,2*Math.PI);
+			ctx.stroke();
+
+			ctx.beginPath();
+			ctx.moveTo(x, y);
+			ctx.lineTo(x+length*Math.cos(theta), y+length*Math.sin(theta));
+			ctx.stroke();
+		
+				
+			ctx.beginPath();
+			ctx.arc(x+length*Math.cos(theta), y+length*Math.sin(theta), 15,0,2*Math.PI);
+			ctx.stroke();			
+		}
+		
+		//handle all the physics
+		function update(){
+			player.omega *= 0.95;
+			if(spacebar)
+				player.omega = player.omega + 0.05*((player.omega > 0)-0.5) ;
+			player.impulse = new Vector(0, 0);
+			if(up){player.impulse.y -= 60;}
+			if(down){player.impulse.y += 60;}
+			if(left){player.impulse.x -= 60;}
+			if(right){player.impulse.x += 60;}
+			player.vel = player.vel.addn(player.impulse, 1/30);
+			var r = new Vector(player.length*Math.cos(player.theta)/2, player.length*Math.sin(player.theta)/2);
+			player.omega += r.cross(player.impulse)/(player.length*player.length*player.mass_2);
+
+			if(player.vel.length > 15) {
+				player.vel.length = 15;
+			}
+
+			player.theta += player.omega;
+			player.pos = player.pos.addn(player.vel, 1);
+
+			redraw();
+		}
+
+		
+		</script>
+
+	</body>
+</html>

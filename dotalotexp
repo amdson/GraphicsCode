@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet">
+		<style>
+			canvas {
+				border-style: solid;
+			}
+			body {
+				background-color: lightblue;
+			}
+		</style>
+	</head>
+	<body>
+
+		<h1 style="color:red;" >Lotadot</h1>
+		<p>
+			<input onclick="startstop()" type="button" value="Start" id="myButton1" />
+			<input onclick="update()" type="button" value="Update" id="Frame" />
+			<input onclick="shiftMode()" type="button" value="Create" id="ModeStatus" />
+			<input onclick="reset()" type="button" value="Reset" id="ApocalypseButton" />
+			<input onclick="moveIt()" type="button" value="Explode All" id="Exploader" />
+			<input type="text" id="k1" value="2500">
+			<input type="text" id="everest" value="500000000000">
+			<input type="text" id="friction" value="0.98">
+			<input type="text" id="syruper" value="0.2">
+
+		</p>
+
+		<canvas id="myCanvas" width="800" height="500" onmousemove="findMouse(event)" > </canvas>
+		<script> 
+
+		function Dot(x, y, vx, vy, movable) {
+			this.pos = new Vector(x, y);
+			this.vel = new Vector(vx, vy);
+			this.nextpos = this.pos;
+			this.nextvel = this.vel;
+			this.accel = new Vector(0, 0);
+			this.displacement = new Vector(0, 0);
+			this.kvals = [];
+			this.movable = movable;
+		}
+		Dot.prototype.interact = function(dot) {
+			var dx = dot.nextpos.addn(this.nextpos, -1);
+			len = dx.length;
+			if(len > 0) {
+				var force = k1/Math.pow(len, 2)-k2/(Math.pow(len, 8));
+				if(force > 1){
+					force = 1;
+				} 
+				else if(force < -5) {
+					force = -5;
+				}
+				dx.length = 1;
+				this.accel = this.accel.addn(dx, force/5);
+				dot.accel = dot.accel.addn(dx, -force/5);
+			} else {
+				this.pos.x += Math.random()*4;
+				this.pos.y += Math.random()*4;
+				dot.pos.x += Math.random()*4;
+				dot.pos.y += Math.random()*4;
+			}
+			var relvel = dot.nextvel.addn(this.nextvel, -1);
+			this.accel = this.accel.addn(relvel, 0.1);
+			dot.accel = dot.accel.addn(relvel, -0.1);
+		}
+
+		function Vector(x, y) {
+			this.x = x;
+			this.y = y;
+		}
+		Object.defineProperty(Vector.prototype, "length", {
+  		get: function() { return Math.sqrt(this.x*this.x+this.y*this.y); },
+			set: function(length) {
+				var len = this.length;
+				this.x = this.x/len*length;
+				this.y = this.y/len*length;
+			}
+		});
+		Vector.prototype.addn = function(v, n) {
+			if(n == 0)
+				return this;
+			return (new Vector(this.x+v.x*n, this.y+v.y*n));
+		}
+		function sum(v, w) {
+			var x = 0;
+			var y = 0;
+			for(var i = 0; i < v.length; i++) {
+				x += v[i].x*w[i];
+				y += v[i].y*w[i];
+			}
+			return new Vector(x, y);
+		}
+		Vector.prototype.cutoff = function(x) {
+			if(this.length > x) {
+				this.length = x;
+			}
+		}
+		function sum(v, w) {
+			var x = 0;
+			var y = 0;
+			for(var i = 0; i < v.length; i++) {
+				x += v[i].x*w[i];
+				y += v[i].y*w[i];
+			}
+			return new Vector(x, y);
+		}
+		Vector.prototype.mult = function(n) {
+			return (new Vector(this.x*n, this.y*n));
+		}
+		Vector.prototype.dot = function(v) {
+			return (this.x*v.x+this.y*v.y);
+		}
+		Vector.prototype.cross = function(v) {
+			return (this.y*v.x-this.x*v.y);
+		}
+		Vector.prototype.proj = function(v) {
+			var u = v.mult(1/v.length);
+			return u.mult(this.dot(u));
+		}
+		
+		var running = false;
+		var iterator;
+		
+		var c = document.getElementById("myCanvas");
+		c.addEventListener("mousedown", mouseDown, false);
+		c.addEventListener("mouseup", mouseUp, false);
+		var ctx = c.getContext("2d");
+		ctx.strokeStyle = "#000000";
+		var rect = c.getBoundingClientRect();
+		
+		var mouseX = 50;
+		var mouseY = 50;
+		var mousedown = false;
+		var grid = [];
+		for(var i = 0; i < 25; i++) {
+			grid.push(new Array(40));
+			for(var j = 0; j < 40; j++) {
+				grid[i][j] = [];
+			}
+		}
+		var k1 = 450;
+		var k2 = 500000;
+		var friction = 0.97;
+		var syruper = 0.2; 
+		var mode = 0;
+		var up = false, right = false, down = false, left = false;
+		var w = false, d = false, s = false, a = false;
+		
+		function findMouse(e)
+		{
+			mouseX = e.clientX - rect.left;
+			mouseY = e.clientY - rect.top; 
+			//document.getElementById("MouseCoords").innerHTML = "("+mouseX+", "+mouseY+")";
+		}
+		
+		function mouseDown()
+		{
+			mousedown = true; 
+			if(mode == 0) {
+				var row = parseInt(mouseY/20);
+				var col = parseInt(mouseX/20);
+				grid[row][col].push(new Dot(mouseX, mouseY, 0, 0, true));
+			} else if(mode == 1) {
+				var row = parseInt(mouseY/20);
+				var col = parseInt(mouseX/20);
+				grid[row][col].push(new Dot(mouseX, mouseY, 0, 0, false));
+			}
+			
+		}
+		
+		function mouseUp()
+		{
+			mousedown = false;
+		}
+		
+		document.onkeydown = function (e) {
+			e = e || window.event;
+			 var event = window.event ? window.event : e;
+			 if (event.keyCode == '38') {
+				// up arrow
+				up = true;
+				}
+			else if (event.keyCode == '40') {
+				// down arrow
+				down = true;
+			}
+			else if (event.keyCode == '37') {
+				// left arrow
+				left = true;
+			}
+			else if (event.keyCode == '39') {
+				// right arrow
+				right = true;
+			}
+			
+			else if (event.keyCode == '87') {
+				// w
+				w = true;
+				}
+			else if (event.keyCode == '83') {
+				// s
+				s = true;
+			}
+			else if (event.keyCode == '65') {
+				// a
+				a = true;
+			}
+			else if (event.keyCode == '68') {
+				// d
+				d = true;
+			}
+			
+		};
+		document.onkeyup = function (e) {
+			e = e || window.event;
+			 if (e.keyCode == '38') {
+				// up arrow
+				up = false;
+				}
+			else if (e.keyCode == '40') {
+				// down arrow
+				down = false;
+			}
+			else if (e.keyCode == '37') {
+				// left arrow
+				left = false;
+			}
+			else if (e.keyCode == '39') {
+				// right arrow
+				right = false;
+			}
+			else if (event.keyCode == '87') {
+				// w
+				w = false;
+				
+				}
+			else if (event.keyCode == '83') {
+				// s
+				s = false;
+				
+			}
+			else if (event.keyCode == '65') {
+				// a
+				a = false;
+				
+			}
+			else if (event.keyCode == '68') {
+				// d
+				d = false;
+				
+			}
+		};
+
+		function shiftMode()
+		{
+			mode = (mode + 1) % 3;
+			if(mode === 0)
+			{	
+				document.getElementById("ModeStatus").value = "Movable";
+			}
+			if(mode === 1)
+			{
+				document.getElementById("ModeStatus").value = "Solid";
+			}
+			if(mode === 2)
+			{
+				document.getElementById("ModeStatus").value = "Attract";
+			}
+		}
+		
+		//Manage whether the update event is being called
+		function startstop()
+		{
+			running = !running;
+			if(running){
+				iterator = setInterval(update, 10);
+				document.getElementById("myButton1").value = "Stop";
+			}
+			else{
+				clearInterval(iterator);
+				document.getElementById("myButton1").value = "Start";
+			}	
+		}
+		
+		//Create a frame of animation
+		function redraw()
+		{
+			//Clear canvas
+			ctx.clearRect(0,0,c.width,c.height);
+			//Draw ripples
+			ctx.strokeStyle = "brown";
+			for(var i = 0; i < grid.length; i++) {
+				for(var j = 0; j < grid[0].length; j++) {
+					var dots = grid[i][j];
+					for(var n = 0; n < dots.length; n++)
+					{
+						ctx.beginPath();
+						ctx.arc(dots[n].pos.x, dots[n].pos.y, 2, 0, 2*Math.PI);
+						ctx.stroke();
+					}
+				}
+			}				
+		}
+		function step(timestep, kval) {
+			//Update velocity and position based on timestep and kval
+			if(timestep > 0) {
+				for(var i = 0; i < grid.length; i++) {
+					for(var j = 0; j < grid[0].length; j++) {
+						var dots = grid[i][j];
+						for(var k = 0; k < dots.length; k++) {
+							dots[k].nextpos = dots[k].pos.addn(dots[k].vel, timestep);
+							dots[k].nextvel = dots[k].vel.addn(dots[k].kvals[kval], timestep);
+							dots[k].nextvel = dots[k].nextvel.addn(new Vector(0, 0.1), timestep);
+							dots[k].nextvel.x *= Math.pow(friction, timestep);
+							dots[k].nextvel.y *= Math.pow(friction, timestep);
+							dots[k].accel = new Vector(0, 0);
+						}
+					}
+				}
+			} else {
+				for(var i = 0; i < grid.length; i++) {
+					for(var j = 0; j < grid[0].length; j++) {
+						var dots = grid[i][j];
+						for(var k = 0; k < dots.length; k++) {
+							dots[k].nextpos = dots[k].pos;
+							dots[k].nextvel = dots[k].vel;
+							dots[k].accel = new Vector(0, 0);
+						}
+					}
+				}
+			}
+			//For all grid squares get new accel values based new positions and velocities
+			for(var i = 0; i < grid.length; i++) {
+				for(var j = 0; j < grid[0].length; j++) {
+					//For all dots in square
+					for(var k = 0; k < grid[i][j].length; k++) {
+						var dot = grid[i][j][k];
+						//Interact with dots inside square
+						for(var l = k+1; l < grid[i][j].length; l++) {
+							dot.interact(grid[i][j][l]);
+						}
+						if(j < grid[0].length-1) {
+							//Interact with dots in square to right
+							for(var l = 0; l < grid[i][j+1].length; l++) {
+								dot.interact(grid[i][j+1][l]);
+							}
+							//Right and down
+							if(i < grid.length -1) {
+								for(var l = 0; l < grid[i+1][j+1].length; l++) {
+									dot.interact(grid[i+1][j+1][l]);
+								}
+							}
+							//Right and up
+							if(i > 0) {
+								for(var l = 0; l < grid[i-1][j+1].length; l++) {
+									dot.interact(grid[i-1][j+1][l]);
+								}
+							}
+						}
+						if(i < grid.length - 1) {
+							//Down
+							for(var l = 0; l < grid[i+1][j].length; l++) {
+								dot.interact(grid[i+1][j][l]);
+							}
+						}
+					}
+				}
+			}
+			for(var i = 0; i < grid.length; i++) {
+				for(var j = 0; j < grid[0].length; j++) {
+					var dots = grid[i][j];
+					for(var k = 0; k < dots.length; k++) {
+						dots[k].kvals.push(dots[k].accel);
+					}
+				}
+			}
+		}
+		//handle all the physics
+		function update(){
+			if(mousedown && mode == 2) {
+				var mouse = new Vector(mouseX, mouseY);
+				for(var i = 0; i < grid.length; i++) {
+					for(var j = 0; j < grid[0].length; j++) {
+						var dots = grid[i][j];
+						for(var k = 0; k < dots.length; k++) {
+							var dx = mouse.addn(dots[k].pos, -1);
+							if(dx.length > 0) {
+								dx.length = 1;
+								dots[k].vel = dots[k].vel.addn(dx, 0.5);
+							}
+						}
+					}
+				}
+			}
+			//Initialize k-values
+			step(0, -1);
+			step(0.5, 0);
+			step(0.5, 1);
+			step(1, 2);
+			//Update velocity, position, and grid position
+			var weights = [1/6, 1/3, 1/3, 1/6];
+			for(var i = 0; i < grid.length; i++) {
+				for(var j = 0; j < grid[0].length; j++) {
+					var dots = grid[i][j];
+					for(var k = 0; k < dots.length; k++) {
+						dots[k].pos = dots[k].pos.addn(dots[k].vel, 1);
+						dots[k].vel = dots[k].vel.addn(sum(dots[k].kvals, weights), 1);
+						dots[k].vel = dots[k].vel.addn(new Vector(0, 0.1), 1);
+						dots[k].vel.x *= friction;
+						dots[k].vel.y *= friction;
+						dots[k].accel = new Vector(0, 0);
+						dots[k].kvals = [];
+					}
+				}
+			}
+
+			for(var i = 0; i < grid.length; i++) {
+				for(var j = 0; j < grid[0].length; j++) {
+					var dots = grid[i][j];
+					for(var k = 0; k < dots.length; k++) {
+						if(dots[k].pos.x <15 || dots[k].pos.x > 785)
+						{
+							dots[k].vel.x = -0.9*dots[k].vel.x;
+							if(dots[k].pos.x <15)
+							{dots[k].pos.x = 16;}
+							else{dots[k].pos.x = 784;}
+						}
+						if(dots[k].pos.y <15 || dots[k].pos.y > 485)
+						{
+							dots[k].vel.y = -0.9*dots[k].vel.y;
+							if(dots[k].pos.y <15)
+							{dots[k].pos.y = 16;}
+							else
+							{dots[k].pos.y = 484;}
+						}
+						var row = parseInt(dots[k].pos.y/20);
+						var col = parseInt(dots[k].pos.x/20);
+						if(row != i || col != j) {
+							grid[row][col].push(dots[k]);
+							dots.splice(k, 1);
+						}
+					}
+				}
+			}
+
+
+			k1 = parseInt(document.getElementById("k1").value);
+			k2 = parseInt(document.getElementById("everest").value);
+			friction = parseFloat(document.getElementById("friction").value);
+			damper = parseFloat(document.getElementById("syruper").value);
+			redraw();
+		}
+		
+		//Delete everything, clear the canvas
+		function reset()
+		{
+			grid = [];
+			for(var i = 0; i < 25; i++) {
+				grid.push(new Array(40));
+				for(var j = 0; j < 40; j++) {
+					grid[i][j] = [];
+				}
+			}
+			redraw();
+		}
+		redraw();
+		</script>
+	</body>
+</html>

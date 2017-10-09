@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet">
+		<style>
+			canvas {
+				border-style: solid;
+			}
+			body {
+				background-color: lightblue;
+			}
+		</style>
+	</head>
+	<body>
+
+		<h1 style="color:red;" >Lotadot</h1>
+		<p>
+			<input onclick="startstop()" type="button" value="Start" id="myButton1" />
+		</p>
+
+		<canvas id="myCanvas" width="800" height="500" onmousemove="findMouse(event)" > </canvas>
+		<script> 
+		function Vector(x, y) {
+			this.x = x;
+			this.y = y;
+		}
+		Object.defineProperty(Vector.prototype, "length", {
+  		get: function() { return Math.sqrt(this.x*this.x+this.y*this.y); },
+			set: function(length) {
+				var len = this.length;
+				this.x = this.x/len*length;
+				this.y = this.y/len*length;
+			}
+		});
+		Vector.prototype.addn = function(v, n) {
+			if(!n)
+				n = 1;
+			return (new Vector(this.x+v.x*n, this.y+v.y*n));
+		}
+		Vector.prototype.cutto = function(x) {
+			if(this.length > x) {
+				this.length = x;
+			}
+		}
+		function sum(v, w) {
+			var x = 0;
+			var y = 0;
+			for(var i = 0; i < v.length; i++) {
+				x += v[i].x*w[i];
+				y += v[i].y*w[i];
+			}
+			return new Vector(x, y);
+		}
+		Vector.prototype.mult = function(n) {
+			return (new Vector(this.x*n, this.y*n));
+		}
+		Vector.prototype.dot = function(v) {
+			return (this.x*v.x+this.y*v.y);
+		}
+		Vector.prototype.cross = function(v) {
+			return (this.y*v.x-this.x*v.y);
+		}
+		Vector.prototype.proj = function(v) {
+			var u = v.mult(1/v.length);
+			return u.mult(this.dot(u));
+		}
+		Vector.prototype.interpolate = function(u, n) {
+			var a = new Vector(this.x*n+u.x*(1-n), this.y*n+u.y*(1-n));
+			//console.log(a);
+			return a; 
+		}
+		
+		var running = false;
+		var iterator;
+		
+		var c = document.getElementById("myCanvas");
+		c.addEventListener("mousedown", mouseDown, false);
+		c.addEventListener("mouseup", mouseUp, false);
+		var ctx = c.getContext("2d");
+		ctx.strokeStyle = "#000000";
+		var rect = c.getBoundingClientRect();
+		
+		var mouseX = 50;
+		var mouseY = 50;
+		
+		
+		function findMouse(e)
+		{
+			mouseX = e.clientX - rect.left;
+			mouseY = e.clientY - rect.top; 
+			//document.getElementById("MouseCoords").innerHTML = "("+mouseX+", "+mouseY+")";
+		}
+		
+		function mouseDown()
+		{
+			mousedown = true;			
+		}
+		
+		function mouseUp()
+		{
+			mousedown = false;
+		}
+		
+		function draw(set){
+			ctx.beginPath();
+			ctx.moveTo(set[0].x, set[0].y);	
+			for(var i = 0; i < set.length; i++) {
+				console.log(set[i].x);
+				ctx.lineTo(set[i].x, set[i].y);
+			}
+			ctx.closePath();
+			ctx.fill();
+
+			ctx.beginPath();
+			ctx.moveTo(set[0].x, set[0].y);	
+			for(var i = 0; i < set.length; i++) {
+				ctx.lineTo(set[i].x, set[i].y);
+			}
+			ctx.closePath();
+			ctx.stroke();
+		}
+
+		function drawSection(points) {
+			draw(points);
+			for(var j = points.length-1; j > -1; j--) {
+				ctx.beginPath()
+				ctx.moveTo(points[j].x, points[j].y);
+				ctx.lineTo(points[(j+1)%points.length].x, points[(j+1)%points.length]. y);
+				ctx.lineTo(points[(j+1)%points.length].x, points[(j+1)%points.length]. y-26);
+				ctx.lineTo(points[j].x, points[j].y-26);
+				ctx.closePath();
+				ctx.fill();
+
+				ctx.beginPath()
+				ctx.moveTo(points[j].x, points[j].y);
+				ctx.lineTo(points[(j+1)%points.length].x, points[(j+1)%points.length]. y);
+				ctx.lineTo(points[(j+1)%points.length].x, points[(j+1)%points.length]. y-26);
+				ctx.lineTo(points[j].x, points[j].y-26);
+				ctx.closePath();
+				ctx.stroke();
+			}
+			for(var j = 0; j < points.length; j++) {
+				points[j].y -= 26; 
+			}
+			draw(points);
+		}
+
+		function giveThetas() {
+			thetas = [];
+			for(var i = 0; i < 10; i++) {
+				thetas[i] = Math.PI*2*Math.random();
+			}
+			thetas.sort();
+			return thetas;
+		}
+		
+		var points = [];
+		var thetas = giveThetas();
+
+		ctx.fillStyle = "#F00000"; 
+		
+		for(var i = 0; i < 6; i++) {
+			points[i] = new Vector(110*Math.cos(thetas[i])+400, 70*Math.sin(thetas[i])+300);
+
+		}
+		for(var i = 0; i < 4; i++) {
+			drawSection(points);
+			var len = points.length - 1;
+			var skipped = parseInt(Math.random()*points.length);
+			var newpoints = [];
+			for(var j = 0; j < points.length; j++) {
+				if(j != skipped) {
+					newpoints[newpoints.length] = points[j].interpolate(points[(j+1)%points.length], Math.random());
+				}
+			}
+			console.log(newpoints);
+			points = newpoints; 
+			console.log(points);
+		}
+		
+		
+		</script>
+	</body>
+</html>

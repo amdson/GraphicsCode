@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet">
+		<style>
+			canvas {
+				border-style: solid;
+			}
+			body {
+				background-color: lightblue;
+			}
+		</style>
+	</head>
+	<body>
+
+		<h1 style="color:red;" >Bouncy Bonds</h1>
+		<p>
+			<input onclick="startstop()" type="button" value="Start" id="myButton1" />
+			<input onclick="update()" type="button" value="Update" id="Frame" />
+			<input onclick="shiftMode()" type="button" value="Create" id="ModeStatus" />
+			<input onclick="reset()" type="button" value="Reset" id="ApocalypseButton" />
+		</p>
+
+		<canvas id="myCanvas" width="800" height="500" onmousemove="findMouse(event)"  
+			> </canvas>
+		<script> 
+
+		function Point(mass, x, y) {
+			this.pos = new Vector(x, y);
+			this.vel = new Vector(0, 0);
+			this.mass = mass;
+			this.force = new Vector(0, 0);
+			this.nextpos = new Vector(0, 0);
+			this.nextvel = new Vector(0, 0);
+			this.kvals = [];
+			this.fixed = false;
+		}
+		Point.prototype.connect = function(p2) {
+			//springs.push(new Spring(this, p2, 1.5, 0.8));
+			springs.push(new Spring(this, p2, 5, 0.8));
+		}
+		function Spring(p1, p2, k, friction){
+			this.p1 = p1;
+			this.p2 = p2;
+			this.k = k;
+			this.friction = friction;
+			this.length = p1.pos.addn(p2.pos, -1).length;
+		}
+		Spring.prototype.sprong = function() {
+			var delta = this.p2.nextpos.addn(this.p1.nextpos, -1);
+			var force = (delta.length-this.length)*this.k;
+			var relvel = this.p1.nextvel.addn(this.p2.nextvel, -1);
+			var springvel = relvel.proj(delta);
+			var friction = springvel.mult(-this.friction);
+			delta.length = 1;
+			 
+			var result = delta.mult(force).addn(friction, 1);
+			if(result.length > 200) {
+				result.length = 200;
+			}
+			return result;
+			//return delta.mult(force);
+		}
+
+		function Vector(x, y) {
+			this.x = x;
+			this.y = y;
+		}
+		Object.defineProperty(Vector.prototype, "length", {
+  		get: function() { return Math.sqrt(this.x*this.x+this.y*this.y); },
+			set: function(length) {
+				var len = this.length;
+				this.x = this.x/len*length;
+				this.y = this.y/len*length;
+			}
+		});
+		Vector.prototype.addn = function(v, n) {
+			if(!n)
+				n = 1;
+			return (new Vector(this.x+v.x*n, this.y+v.y*n));
+		}
+		Vector.prototype.cutoff = function(x) {
+			if(this.length > x) {
+				this.length = x;
+			}
+		}
+		function sum(v, w) {
+			var x = 0;
+			var y = 0;
+			for(var i = 0; i < v.length; i++) {
+				x += v[i].x*w[i];
+				y += v[i].y*w[i];
+			}
+			return new Vector(x, y);
+		}
+		Vector.prototype.mult = function(n) {
+			return (new Vector(this.x*n, this.y*n));
+		}
+		Vector.prototype.dot = function(v) {
+			return (this.x*v.x+this.y*v.y);
+		}
+		Vector.prototype.cross = function(v) {
+			return (this.y*v.x-this.x*v.y);
+		}
+		Vector.prototype.proj = function(v) {
+			var u = v.mult(1/v.length);
+			return u.mult(this.dot(u));
+		}
+
+		
+		var running = false;
+		var iterator;
+		
+		var c = document.getElementById("myCanvas");
+		c.addEventListener("mousedown", mouseDown, false);
+		c.addEventListener("mouseup", mouseUp, false);
+		var ctx = c.getContext("2d");
+		ctx.strokeStyle = "#000000";
+		var rect = c.getBoundingClientRect();
+		
+		var points = [new Point(10, 240, 250), new Point(10, 600, 250), new Point(10, 470, 10)];
+		var gravity = new Vector(0, 5)
+		var springs = [];
+		points[0].connect(points[1]); points[1].connect(points[2]); points[2].connect(points[0]);
+		var selected = [];
+		var controllable = [];
+		var controllable2 = [];
+		var mouseX = 50;
+		var mouseY = 50;
+		var mousedown = false;
+		var mode = 0;
+		var up = false, right = false, down = false, left = false;
+		var w = false, d = false, s = false, a = false;
+
+		function shiftMode()
+		{
+			mode = (mode + 1) % 5;
+			if(mode === 0)
+			{	
+				document.getElementById("ModeStatus").value = "Create";
+			}
+			if(mode === 1)
+			{
+				document.getElementById("ModeStatus").value = "Connect";
+			}
+			if(mode === 2)
+			{
+				document.getElementById("ModeStatus").value = "SelectA";
+			}
+			if(mode === 3)
+			{
+				document.getElementById("ModeStatus").value = "SelectB";
+			}
+			if(mode == 4) 
+			{
+				document.getElementById("ModeStatus").value = "Fix";
+			}
+		}
+		
+		function findMouse(e)
+		{
+			mouseX = e.clientX - rect.left;
+			mouseY = e.clientY - rect.top; 
+			//document.getElementById("MouseCoords").innerHTML = "("+mouseX+", "+mouseY+")";
+		}
+		
+		function mouseDown()
+		{
+			mousedown = true; 
+			if(!running)
+			{
+				if(mode === 0)
+				{
+					var neoNode = new Point(10, mouseX, mouseY);
+					points.push(neoNode);
+					redraw();
+					
+				}
+				
+				if(mode === 1)
+				{
+					var minsqaredist = 100;
+					var selectedindex = selected.length;
+					for(var i = 0; i < points.length; i++)
+					{
+						if(selected.length === 0 || selected[0] != i)
+						{
+							var xdist = points[i].pos.x-mouseX;
+							var ydist = points[i].pos.y-mouseY;
+						
+							if(xdist*xdist+ydist*ydist < minsqaredist)
+							{
+								selected[selectedindex] = i;
+								minsquaredist = xdist*xdist+ydist*ydist;
+							}
+						}
+					}
+					if(selected.length === 2)
+					{
+						points[selected[0]].connect(points[selected[1]]);
+						selected = [];
+					}
+					redraw();
+				}
+				
+				if(mode === 2)
+				{
+					var minsqaredist = 100;
+					var chosen = -1;
+					var exiting = false;
+					for(var i = 0; i < points.length; i++)
+					{
+						
+						var xdist = points[i].pos.x-mouseX;
+						var ydist = points[i].pos.y-mouseY;
+						
+						if(xdist*xdist+ydist*ydist < minsqaredist)
+						{
+							chosen = i;
+							minsquaredist = xdist*xdist+ydist*ydist;
+						}
+						
+					}
+					if(chosen > -1)
+					{
+						var chose = points[chosen];
+						for(var i = 0; i < controllable.length; i++)
+						{
+							if(chose.pos.x == controllable[i].pos.x && chose.pos.y == controllable[i].pos.y)
+							{
+								controllable.splice(i, 1);
+								exiting = true;
+								break;
+							}
+						}
+						if(!exiting) {controllable[controllable.length] = points[chosen];}
+					}
+					
+					redraw();
+				}
+				
+				if(mode === 3)
+				{
+					var minsqaredist = 100;
+					var chosen = -1;
+					var exiting = false;
+					for(var i = 0; i < points.length; i++)
+					{
+						
+						var xdist = points[i].pos.x-mouseX;
+						var ydist = points[i].pos.y-mouseY;
+						
+						if(xdist*xdist+ydist*ydist < minsqaredist)
+						{
+							chosen = i;
+							minsquaredist = xdist*xdist+ydist*ydist;
+						}
+						
+					}
+					if(chosen > -1)
+					{
+						var chose = points[chosen];
+						for(var i = 0; i < controllable2.length; i++)
+						{
+							if(chose.pos.x == controllable2[i].pos.x && chose.pos.y == controllable2[i].pos.y)
+							{
+								controllable2.splice(i, 1);
+								exiting = true;
+								break;
+							}
+						}
+						if(!exiting) {controllable2[controllable2.length] = points[chosen];}
+					}
+					
+					redraw();
+				}
+
+				if(mode == 4) {
+					var minsqaredist = 100;
+					var chosen = -1;
+					for(var i = 0; i < points.length; i++)
+					{
+						var xdist = points[i].pos.x-mouseX;
+						var ydist = points[i].pos.y-mouseY;
+						
+						if(xdist*xdist+ydist*ydist < minsqaredist)
+						{
+							chosen = i;
+							minsquaredist = xdist*xdist+ydist*ydist;
+						}
+					}
+					if(chosen > -1) {
+						points[chosen].fixed = true;
+						points[chosen].vel = new Vector(0, 0);
+					}
+					redraw();
+				}
+			}	
+			
+		}
+		
+		function mouseUp()
+		{
+			mousedown = false;
+		}
+		
+		document.onkeydown = function (e) {
+			e = e || window.event;
+			 var event = window.event ? window.event : e;
+			 if (event.keyCode == '38') {
+				// up arrow
+				up = true;
+				}
+			else if (event.keyCode == '40') {
+				// down arrow
+				down = true;
+			}
+			else if (event.keyCode == '37') {
+				// left arrow
+				left = true;
+			}
+			else if (event.keyCode == '39') {
+				// right arrow
+				right = true;
+			}
+			
+			else if (event.keyCode == '87') {
+				// w
+				w = true;
+				}
+			else if (event.keyCode == '83') {
+				// s
+				s = true;
+			}
+			else if (event.keyCode == '65') {
+				// a
+				a = true;
+			}
+			else if (event.keyCode == '68') {
+				// d
+				d = true;
+			}
+			
+		};
+		document.onkeyup = function (e) {
+			e = e || window.event;
+			 if (e.keyCode == '38') {
+				// up arrow
+				up = false;
+				}
+			else if (e.keyCode == '40') {
+				// down arrow
+				down = false;
+			}
+			else if (e.keyCode == '37') {
+				// left arrow
+				left = false;
+			}
+			else if (e.keyCode == '39') {
+				// right arrow
+				right = false;
+			}
+			else if (event.keyCode == '87') {
+				// w
+				w = false;
+				
+				}
+			else if (event.keyCode == '83') {
+				// s
+				s = false;
+				
+			}
+			else if (event.keyCode == '65') {
+				// a
+				a = false;
+				
+			}
+			else if (event.keyCode == '68') {
+				// d
+				d = false;
+				
+			}
+		};
+		
+		//Manage whether the update event is being called
+		function startstop()
+		{
+			running = !running;
+			if(running){
+				iterator = setInterval(update, 10);
+				document.getElementById("myButton1").value = "Stop";
+			}
+			else{
+				clearInterval(iterator);
+				document.getElementById("myButton1").value = "Start";
+			}	
+		}
+		
+		//Create a frame of animation
+		function redraw()
+		{
+			//Clear canvas
+			ctx.clearRect(0,0,c.width,c.height);
+			//Draw nodes and the connections between them
+			ctx.strokeStyle = "brown";
+			for(var n = 0; n < points.length; n++)
+			{
+				ctx.beginPath();
+				ctx.arc(points[n].pos.x, points[n].pos.y, 10,0,2*Math.PI);
+				ctx.stroke();
+				if(points[n].fixed) {
+					ctx.strokeStyle = "black";
+					ctx.beginPath();
+					ctx.arc(points[n].pos.x, points[n].pos.y, 10,0,2*Math.PI);
+					ctx.stroke();
+					ctx.strokeStyle = "brown";
+				}
+			}
+			for(var i = 0; i < springs.length; i++) {
+				ctx.beginPath();
+				ctx.moveTo(springs[i].p1.pos.x, springs[i].p1.pos.y);
+				ctx.lineTo(springs[i].p2.pos.x, springs[i].p2.pos.y);
+				ctx.stroke();
+			}
+			ctx.strokeStyle = "yellow";
+			for(var n = 0; n < selected.length; n++)
+			{
+				ctx.beginPath();
+				ctx.arc(points[selected[n]].pos.x, points[selected[n]].pos.y, 10,0,2*Math.PI);
+				ctx.stroke();
+			}
+			ctx.strokeStyle = "blue";
+			for(var n = 0; n < controllable.length; n++)
+			{
+				ctx.beginPath();
+				ctx.arc(controllable[n].pos.x, controllable[n].pos.y, 10,0,2*Math.PI);
+				ctx.stroke();
+			}
+			ctx.strokeStyle = "green";
+			for(var n = 0; n < controllable2.length; n++)
+			{
+				ctx.beginPath();
+				ctx.arc(controllable2[n].pos.x, controllable2[n].pos.y, 10,0,2*Math.PI);
+				ctx.stroke();
+			}
+		}
+
+		//Assume the nextpos and nextvel values for the points have been set,
+		//return the accelerations given by these values
+		function newK() {
+			for(var i = 0; i < points.length; i++) {
+				points[i].force = gravity;
+			}
+			for(var i = 0; i < springs.length; i++) {
+				var force = springs[i].sprong();
+				springs[i].p1.force = springs[i].p1.force.addn(force, 1);
+				springs[i].p2.force = springs[i].p2.force.addn(force, -1);
+			}
+			for(var i = 0; i < points.length; i++) {
+				points[i].kvals.push(points[i].force.mult(1/points[i].mass));
+			}
+		}
+		//Take in previously found values for acceleration
+		//update the nextvel and nextpos values based on this
+		function partialUpdate(time, k) {
+			for(var i = 0; i < points.length; i++) {
+				points[i].nextpos = points[i].pos.addn(points[i].vel, 1);
+				points[i].nextvel = points[i].vel.addn(points[i].kvals[k], 1);
+			}
+		}
+		
+		//handle all the physics
+		function update(){
+			if(mousedown) {
+				for(var i = 0; i < points.length; i++) {
+					var delta = (new Vector(mouseX, mouseY)).addn(points[i].pos, -1);
+					delta.length = 1;
+					points[i].vel = points[i].vel.addn(delta, 1);
+				}
+			}
+			for(var i = 0; i < points.length; i++) {
+				points[i].nextpos = points[i].pos;
+				points[i].nextvel = points[i].vel;
+			}
+			/*
+			for(var i = 0; i < points.length; i++) {
+				console.log("(vx, vy)", points[i].vel.x, points[i].vel.y);
+			}
+			*/
+
+			newK(); //k1
+			partialUpdate(0.5, 0);
+			newK(); //k2
+			partialUpdate(0.5, 1);
+			newK(); //k3
+			partialUpdate(1, 2);
+			newK(); //k4
+			var weights = [1/6, 1/3, 1/3, 1/6];
+			for(var i = 0; i < points.length; i++) {
+				if(!points[i].fixed) {
+					points[i].pos = points[i].pos.addn(points[i].vel, 1);
+					points[i].vel = points[i].vel.addn(sum(points[i].kvals, weights), 1);
+					points[i].kvals = [];
+				}
+			}
+
+			for(var i = 0; i < controllable.length; i++) {
+			
+				if(up)
+				{controllable[i].vel.y -= 0.5}
+				if(down)
+				{controllable[i].vel.y += 0.5}
+				if(right)
+				{controllable[i].vel.x += 0.5}
+				if(left)
+				{controllable[i].vel.x -= 0.5}
+			}
+			for(var i = 0; i < controllable2.length; i++)
+			{
+				if(w)
+				{controllable2[i].vel.y -= 0.5}
+				if(s)
+				{controllable2[i].vel.y += 0.5}
+				if(d)
+				{controllable2[i].vel.x += 0.5}
+				if(a)
+				{controllable2[i].vel.x -= 0.5}
+			}
+			
+			for(var i = 0; i < points.length; i++) {
+				points[i].vel = points[i].vel.mult(0.99);
+			}
+			//Bounce nodes which are hitting the edges of canvas
+			for(var i = 0; i < points.length; i++) {
+				if(points[i].pos.x <15 || points[i].pos.x > 785)
+				{
+					//points[i].vel.x = 0;
+					points[i].vel.x = -0.9*points[i].vel.x;
+					if(points[i].pos.x <15)
+					{points[i].pos.x = 16;}
+					else{points[i].pos.x = 784;}
+				}
+				if(points[i].pos.y <15 || points[i].pos.y > 485)
+				{
+					//points[i].vel.y = 0;
+					points[i].vel.y = -0.9*points[i].vel.y;
+					if(points[i].pos.y <15)
+					{points[i].pos.y = 16;}
+					else
+					{points[i].pos.y = 484;}
+				}
+			}
+			redraw();
+		}
+		
+		//Delete everything, clear the canvas
+		function reset()
+		{
+			points = [];
+			springs = []; 
+			redraw();
+		}
+		
+		redraw();
+		</script>
+
+	</body>
+</html>

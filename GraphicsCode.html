@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" href="BondCSS.css">
+	</head>
+	<body>
+
+		<h1 style="color:red;" >Bouncy Bonds</h1>
+		<p>
+			<input onclick="startstop()" type="button" value="Start" id="myButton1" />
+			<input onclick="shiftMode()" type="button" value="Create" id="ModeStatus" />
+			<input onclick="reset()" type="button" value="Reset" id="ApocalypseButton" />
+		</p>
+
+		<canvas id="myCanvas" width="800" height="500" onmousemove="findMouse(event)"
+			> </canvas>
+		<h3 id = "MakeshiftConsole">Let's see</h3>
+		<h3 id = "MakeshiftConsole2">Let's see</h3>
+		<h3 id = "MouseCoords"> (0, 0) </h3>
+		<h3 id = "MouseDown"> Mouse is up </h3>
+		<h3 id = "CreateModeStatus"> Creator's Block Active </h3>
+		<h3 id = "ArrowStatus"> Jack </h3>
+		<script>
+		class Aster {
+			constructor(mass, xpos, ypos) {
+				this.mass = mass;
+				this.xpos = xpos;
+				this.ypos = ypos;
+				this.xvel = 0;
+				this.yvel = 0;
+				this.xforce = 0;
+				this.yforce = 0;
+			}
+		}
+
+		var running = false;
+		var iterator;
+
+		var c = document.getElementById("myCanvas");
+		c.addEventListener("mousedown", mouseDown, false);
+		c.addEventListener("mouseup", mouseUp, false);
+		var ctx = c.getContext("2d");
+		ctx.strokeStyle = "#000000";
+		var rect = c.getBoundingClientRect();
+
+		//Manage whether the update event is being called
+		function startstop()
+		{
+			running = !running;
+			if(running){
+				iterator = setInterval(update, 40);
+				document.getElementById("myButton1").value = "Stop";
+			}
+			else{
+				clearInterval(iterator);
+				document.getElementById("myButton1").value = "Start";
+			}
+		}
+
+		//Create a frame of animation
+		function redraw()
+		{
+			//Clear canvas
+			ctx.clearRect(0,0,c.width,c.height);
+			//Draw nodes and the connections between them
+			ctx.strokeStyle = "brown";
+			for(var n = 0; n < nodes.length; n++)
+			{
+				for(var k = 0; k < nodes[n].connected.length; k++)
+				{
+					var c2node = nodes[ nodes[n].connected[k][0] ];
+					ctx.beginPath();
+					ctx.moveTo(nodes[n].xpos,nodes[n].ypos);
+					ctx.lineTo(c2node.xpos, c2node.ypos);
+					ctx.stroke();
+				}
+
+
+				ctx.beginPath();
+				ctx.arc(nodes[n].xpos, nodes[n].ypos, 10,0,2*Math.PI);
+				ctx.stroke();
+				document.getElementById("MakeshiftConsole2").innerHTML = "("+n+")";
+			}
+
+			//Draw outline around selected nodes
+			ctx.strokeStyle="red";
+			for(var i = 0; i < selected.length; i++)
+			{
+				ctx.beginPath();
+				ctx.arc(nodes[selected[i]].xpos, nodes[selected[i]].ypos, 12,0,2*Math.PI);
+				ctx.stroke();
+			}
+
+			ctx.strokeStyle = "orange";
+			for(var i = 0; i < controllable.length; i++)
+			{
+				ctx.beginPath();
+				ctx.arc(nodes[controllable[i]].xpos, nodes[controllable[i]].ypos, 12,0,2*Math.PI);
+				ctx.stroke();
+			}
+
+			ctx.strokeStyle = "blue";
+			for(var i = 0; i < controllable2.length; i++)
+			{
+				ctx.beginPath();
+				ctx.arc(nodes[controllable2[i]].xpos, nodes[controllable2[i]].ypos, 12,0,2*Math.PI);
+				ctx.stroke();
+			}
+
+		}
+
+		//handle all the physics
+		function update(){
+
+			redraw();
+		}
+
+
+
+		</script>
+
+	</body>
+</html>

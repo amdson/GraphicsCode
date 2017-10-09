@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+	<head>
+
+		<style>
+			canvas {
+				border-style: solid;
+			}
+			body {
+				background-color: lightblue;
+			}
+		</style>
+	</head>
+	<body>
+
+		<h1 style="color:red;" >Asteroid Hunting</h1>
+		<p>
+			<input onclick="startstop()" type="button" value="Start" id="myButton1" />
+		</p>
+
+		<canvas id="myCanvas" width="800" height="500" onmousemove="findMouse(event)" > </canvas>
+
+		<script>
+
+		class Particle {
+			constructor(mass, xpos, ypos) {
+				this.mass = mass;
+				this.xpos = xpos;
+				this.ypos = ypos;
+				this.xvel = 0;
+				this.yvel = 0;
+				this.nextxpos = xpos;
+				this.nextypos = ypos;
+				this.nextxvel = 0;
+				this.nextyvel = 0;
+			}
+		}
+
+		var boy = new Particle(100, 50, 50);
+		boy.anchored = false;
+		boy.theta = 0;
+
+		var ball = new Particle(200, 100, 100);
+		ball.xvel = 8;
+		ball.yvel = 10;
+
+
+		var running = false;
+		var iterator;
+
+		var c = document.getElementById("myCanvas");
+		c.addEventListener("mousedown", mouseDown, false);
+		c.addEventListener("mouseup", mouseUp, false);
+		var ctx = c.getContext("2d");
+		ctx.strokeStyle = "#000000";
+		var rect = c.getBoundingClientRect();
+
+		var mouseX = 50;
+		var mouseY = 50;
+		var mousedown = false;
+
+		var up = false, right = false, down = false, left = false;
+		var w = false, d = false, s = false, a = false;
+		var spacebar = false;
+
+
+
+		function findMouse(e)
+		{
+			mouseX = e.clientX - rect.left;
+			mouseY = e.clientY - rect.top;
+			//document.getElementById("MouseCoords").innerHTML = "("+mouseX+", "+mouseY+")";
+		}
+
+		function mouseDown()
+		{
+			mousedown = true;
+			//document.getElementById("MouseDown").innerHTML = "Mouse is down. Repeat. Mouse is down.";
+		}
+
+		function mouseUp()
+		{
+			mousedown = false;
+			//document.getElementById("MouseDown").innerHTML = "Mouse is up.";
+		}
+
+		document.onkeydown = function (e) {
+			e = e || window.event;
+			 var event = window.event ? window.event : e;
+			 if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+       			 e.preventDefault();
+   			 }
+			 if (event.keyCode == '32') {
+				 spacebar = true;
+				}
+			 if (event.keyCode == '38') {
+				// up arrow
+				up = true;
+				//document.getElementById("ArrowStatus").innerHTML = "Up";
+				}
+			else if (event.keyCode == '40') {
+				// down arrow
+				down = true;
+				//document.getElementById("ArrowStatus").innerHTML = "Down";
+			}
+			else if (event.keyCode == '37') {
+				// left arrow
+				left = true;
+				//document.getElementById("ArrowStatus").innerHTML = "Left";
+			}
+			else if (event.keyCode == '39') {
+				// right arrow
+				right = true;
+				//document.getElementById("ArrowStatus").innerHTML = "Right";
+			}
+
+			else if (event.keyCode == '87') {
+				// w
+				w = true;
+				//document.getElementById("ArrowStatus").innerHTML = "Up";
+				}
+			else if (event.keyCode == '83') {
+				// s
+				s = true;
+			  //document.getElementById("ArrowStatus").innerHTML = "Down";
+			}
+			else if (event.keyCode == '65') {
+				// a
+				a = true;
+				//document.getElementById("ArrowStatus").innerHTML = "Left";
+			}
+			else if (event.keyCode == '68') {
+				// d
+				d = true;
+				//document.getElementById("ArrowStatus").innerHTML = "Right";
+			}
+
+		};
+
+		document.onkeyup = function (e) {
+			e = e || window.event;
+			 if (event.keyCode == '32') {
+					spacebar = false;
+				}
+			 if (e.keyCode == '38') {
+				// up arrow
+				up = false;
+				document.getElementById("ArrowStatus").innerHTML = "Jack";
+				}
+			else if (e.keyCode == '40') {
+				// down arrow
+				down = false;
+				document.getElementById("ArrowStatus").innerHTML = "Jack";
+			}
+			else if (e.keyCode == '37') {
+				// left arrow
+				left = false;
+				document.getElementById("ArrowStatus").innerHTML = "Jack";
+			}
+			else if (e.keyCode == '39') {
+				// right arrow
+				right = false;
+				document.getElementById("ArrowStatus").innerHTML = "Jack";
+			}
+			else if (event.keyCode == '87') {
+				// w
+				w = false;
+
+				}
+			else if (event.keyCode == '83') {
+				// s
+				s = false;
+
+			}
+			else if (event.keyCode == '65') {
+				// a
+				a = false;
+
+			}
+			else if (event.keyCode == '68') {
+				// d
+				d = false;
+
+			}
+		};
+
+		//Manage whether the update event is being called
+		function startstop()
+		{
+			running = !running;
+			if(running){
+				iterator = setInterval(update, 40);
+				document.getElementById("myButton1").value = "Stop";
+			}
+			else{
+				clearInterval(iterator);
+				document.getElementById("myButton1").value = "Start";
+			}
+		}
+
+
+		//Create a frame of animation
+		function redraw()
+		{
+
+			//Clear canvas
+			ctx.clearRect(0,0,c.width,c.height);
+
+
+
+			//Draw boy
+			ctx.fillStyle = "#A04030";
+			ctx.beginPath();
+			ctx.arc(boy.xpos, boy.ypos, 5,0,2*Math.PI);
+			ctx.fill();
+			//Draw ball
+			ctx.fillStyle = "#4000E0";
+			ctx.beginPath();
+			ctx.arc(ball.xpos, ball.ypos, 45,0,2*Math.PI);
+			ctx.fill();
+		}
+
+
+
+		//handle all the physics
+
+		function update(){
+			//document.getElementById("MouseCoords").innerHTML = "("+mouseX+", "+mouseY+")";
+
+			//Test for collusions wall/boy, wall/ball, boy/ball
+			var xdist = boy.xpos-ball.xpos;
+			var ydist = boy.ypos-ball.ypos;
+			var distance = Math.sqrt(xdist*xdist+ydist*ydist);
+
+			if(boy.anchored){
+				if(boy.xpos <15 || boy.xpos > c.width - 15)
+				{
+					ball.xvel *= -0.9;
+					if(boy.xpos <15)
+					{ball.xpos += (15-boy.xpos);}
+					else{ball.xpos -= (boy.xpos-c.width + 15);}
+				}
+				if(boy.ypos <15 || boy.ypos > c.height - 15)
+				{
+					ball.yvel *= -0.9;
+					if(boy.ypos <15)
+					{ball.ypos += (15-boy.ypos);}
+					else{ball.ypos -= (boy.ypos-c.height + 15);}
+				}
+			} else {
+				if(boy.xpos <15 || boy.xpos > c.width - 15)
+				{
+					boy.xvel *= -0.9;
+					if(boy.xpos <15)
+					{boy.xpos = 16;}
+					else{boy.xpos = c.width - 16;}
+				}
+				if(boy.ypos <15 || boy.ypos > c.height - 15)
+				{
+					boy.yvel *= -0.9;
+					if(boy.ypos <15)
+					{boy.ypos = 16;}
+					else{boy.ypos = c.height - 16;}
+				}
+			}
+			if(ball.xpos <15 || ball.xpos > c.width - 15)
+			{
+				ball.xvel *= -0.9;
+				if(ball.xpos <15)
+				{ball.xpos = 16;}
+				else{ball.xpos = c.width - 16;}
+			}
+			if(ball.ypos <15 || ball.ypos > c.height - 15)
+			{
+				ball.yvel *= -0.9;
+				if(ball.ypos <15) {ball.ypos = 16;}
+				else {ball.ypos = c.height - 16;}
+			}
+
+			if(distance < 50) {
+				boy.theta = Math.atan2(ydist, xdist);
+				boy.anchored = true;
+				boy.xpos = 50*Math.cos(boy.theta) + ball.xpos;
+				boy.ypos = 50*Math.sin(boy.theta) + ball.ypos;
+
+			}
+
+
+			ball.nextxvel = ball.xvel;
+			ball.nextyvel = ball.yvel;
+			boy.nextxvel = 0.95*boy.xvel;
+			boy.nextyvel = 0.95*boy.yvel;
+			/*
+			var spsq = boy.xvel*boy.xvel+boy.yvel*boy.yvel
+			if(spsq<100){
+				boy.nextxvel = boy.xvel;
+				boy.nextyvel = boy.yvel;
+			} else {
+				var sp = Math.sqrt(spsq);
+				boy.nextxvel = boy.xvel*10/sp;
+				boy.nextyvel = boy.yvel*10/sp;
+			}
+			*/
+
+			/*
+			if(!boy.anchored) {
+				boy.nextxvel += -3*(xdist/distance);
+				boy.nextyvel += -3*(ydist/distance);
+				ball.nextxvel += 2*(xdist/distance);
+				ball.nextyvel += 2*(ydist/distance);
+			}
+			*/
+
+
+
+			if(boy.anchored) {
+				if(spacebar){
+					var xdist = boy.xpos - ball.xpos;
+					var ydist = boy.ypos - ball.ypos;
+					boy.anchored = false;
+					boy.nextxvel = xdist/2+ball.xvel;
+					boy.nextyvel = ydist/2+ball.yvel;
+				}
+				if(right||d)
+				{boy.theta += 0.1}
+				if(left||a)
+				{boy.theta -= 0.1;}
+			} else {
+				if(up||w)
+				{boy.nextyvel -= .5;}
+				if(down||s)
+				{boy.nextyvel += .5;}
+				if(right||d)
+				{boy.nextxvel += .5;}
+				if(left||a)
+				{boy.nextxvel -= .5;}
+			}
+
+			ball.xvel = ball.nextxvel;
+			ball.yvel = ball.nextyvel;
+			boy.xvel = boy.nextxvel;
+			boy.yvel = boy.nextyvel;
+
+			ball.xpos += ball.xvel;
+			ball.ypos += ball.yvel;
+
+			if(boy.anchored) {
+				boy.xpos = 50*Math.cos(boy.theta) + ball.xpos;
+				boy.ypos = 50*Math.sin(boy.theta) + ball.ypos;
+			}
+			else {
+				boy.xpos += boy.xvel;
+				boy.ypos += boy.yvel;
+			}
+
+			redraw();
+
+		}
+
+
+		</script>
+
+	</body>
+</html>

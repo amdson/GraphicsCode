@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html>
+	<head>
+
+		<style>
+			canvas {
+				border-style: solid;
+			}
+			body {
+				background-color: lightblue;
+			}
+		</style>
+	</head>
+	<body>
+
+		<h1 style="color:red;" >Shot Test</h1>
+		<p>
+			<input onclick="startstop()" type="button" value="Start" id="myButton1" />
+		</p>
+
+		<canvas id="myCanvas" width="800" height="500" onmousemove="findMouse(event)" > </canvas>
+
+
+
+
+		<script>
+
+		class Bullet {
+			constructor(xpos, ypos, accel, direction) {
+
+				this.xpos = xpos;
+				this.ypos = ypos;
+				this.xvel = 0;
+				this.yvel = 0;
+				this.accel = accel;
+				this.speed = 0;
+				this.direction = direction;
+			}
+		}
+
+
+
+		var running = false;
+		var iterator;
+
+		var c = document.getElementById("myCanvas");
+		c.addEventListener("mousedown", mouseDown, false);
+		c.addEventListener("mouseup", mouseUp, false);
+		var ctx = c.getContext("2d");
+		ctx.strokeStyle = "#000000";
+		var rect = c.getBoundingClientRect();
+
+		var ship = {"xpos":300, "ypos":300, "speed": 3};
+		var gun = {"xpos":300, "ypos":200};
+
+		var bullets = [];
+
+		var cooldown = 10;
+		var acceleration = 0.5;
+
+		var mouseX = 50;
+		var mouseY = 50;
+		var mousedown = false;
+
+		var up = false, right = false, down = false, left = false;
+		var w = false, d = false, s = false, a = false;
+
+
+
+		function findMouse(e)
+		{
+			mouseX = e.clientX - rect.left;
+			mouseY = e.clientY - rect.top;
+			//document.getElementById("MouseCoords").innerHTML = "("+mouseX+", "+mouseY+")";
+		}
+
+		function mouseDown()
+		{
+			mousedown = true;
+			//document.getElementById("MouseDown").innerHTML = "Mouse is down. Repeat. Mouse is down.";
+		}
+
+		function mouseUp()
+		{
+			mousedown = false;
+			//document.getElementById("MouseDown").innerHTML = "Mouse is up.";
+		}
+
+		document.onkeydown = function (e) {
+			e = e || window.event;
+			 var event = window.event ? window.event : e;
+			 if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+       			 e.preventDefault();
+   			 }
+			 if (event.keyCode == '38') {
+				// up arrow
+				up = true;
+
+				}
+			else if (event.keyCode == '40') {
+				// down arrow
+				down = true;
+
+			}
+			else if (event.keyCode == '37') {
+				// left arrow
+				left = true;
+
+			}
+			else if (event.keyCode == '39') {
+				// right arrow
+				right = true;
+
+			}
+
+			else if (event.keyCode == '87') {
+				// w
+				w = true;
+
+				}
+			else if (event.keyCode == '83') {
+				// s
+				s = true;
+
+			}
+			else if (event.keyCode == '65') {
+				// a
+				a = true;
+
+			}
+			else if (event.keyCode == '68') {
+				// d
+				d = true;
+
+			}
+
+		};
+
+		document.onkeyup = function (e) {
+			e = e || window.event;
+			 if (e.keyCode == '38') {
+				// up arrow
+				up = false;
+
+				}
+			else if (e.keyCode == '40') {
+				// down arrow
+				down = false;
+
+			}
+			else if (e.keyCode == '37') {
+				// left arrow
+				left = false;
+
+			}
+			else if (e.keyCode == '39') {
+				// right arrow
+				right = false;
+
+			}
+			else if (event.keyCode == '87') {
+				// w
+				w = false;
+
+				}
+			else if (event.keyCode == '83') {
+				// s
+				s = false;
+
+			}
+			else if (event.keyCode == '65') {
+				// a
+				a = false;
+
+			}
+			else if (event.keyCode == '68') {
+				// d
+				d = false;
+
+			}
+		};
+
+		//Manage whether the update event is being called
+		function startstop()
+		{
+			running = !running;
+			if(running){
+				iterator = setInterval(update, 40);
+				document.getElementById("myButton1").value = "Stop";
+			}
+			else{
+				clearInterval(iterator);
+				document.getElementById("myButton1").value = "Start";
+			}
+		}
+
+
+		//Create a frame of animation
+		function redraw()
+		{
+			//Clear canvas
+			ctx.clearRect(0,0,c.width,c.height);
+			ctx.fillStyle = "black";
+
+			//Draw asteroids
+			ctx.strokeStyle = "brown";
+			ctx.fillStyle = "brown";
+			for(var n = 0; n < bullets.length; n++)
+			{
+				ctx.beginPath();
+				ctx.arc(bullets[n].xpos, bullets[n].ypos, 5,0,2*Math.PI);
+				ctx.fill();
+			}
+
+			//Draw ship
+			ctx.beginPath();
+			ctx.arc(ship.xpos, ship.ypos, 10,0,2*Math.PI);
+			ctx.stroke();
+		}
+
+		function shoot(gun) {
+			var dx = ship.xpos-gun.xpos;
+			var dy = ship.ypos-gun.ypos;
+			var dist = Math.sqrt(dx*dx+dy*dy);
+			var direction = predictAngle();//Math.atan2(-dy, dx);
+			bullets[bullets.length] = new Bullet(gun.xpos+7*dx/dist, gun.ypos+7*dy/dist, acceleration, direction);
+			console.log("spawned bullet with direction: "+direction*180/Math.PI);
+		}
+
+		function predictAngle()
+		{
+			console.log("starting calculations for shooting angle");
+
+			var acc = acceleration;
+			var dx = ship.xpos-gun.xpos;
+			var dy = ship.ypos-gun.ypos;
+
+			var vship = ship.speed;
+			var tdx= 0; var tdy = 0;
+			if(d){tdx+=1;} if(a){tdx -= 1;}
+			if(w){tdy-=1;} if(s){tdy+=1;}
+			if(a) {
+				console.log("a");
+			}
+			if(tdx*tdx+tdy*tdy > 0) {
+				tdx /= Math.sqrt(tdx*tdx+tdy*tdy);
+				tdy /= Math.sqrt(tdx*tdx+tdy*tdy);
+			}
+			var vx = vship*tdx;
+			var vy = vship*tdy;
+
+			var ax = dx; var ay = dy; var error = 1000; var iter = 0; var tth=0; var nexttth=0; var tdif=0;
+			nexttth = Math.sqrt(2*Math.sqrt(ax*ax+ay*ay)/acc);
+			while(error>196 && iter < 10) {
+				tth = nexttth;
+				ax = dx + vx*tth; ay = dy +vy*tth;
+				nexttth = Math.sqrt(2*Math.sqrt(ax*ax+ay*ay)/acc);
+				tdif = tth-nexttth;
+				error = tdif*tdif*(vx*vx+vy*vy);
+				iter += 1;
+			}
+			console.log("accel: "+acc);
+			console.log("timetohit: "+tth+" error: "+error+", aim: ("+ax+", "+ay+ ") vel: ("+vx+", "+vy+") pos: ("+dx+", "+dy+")");
+
+			//var shootang = Math.atan2(-ay, ax);
+			var shootang = Math.atan2(-ay, ax);
+			return shootang;
+
+		}
+
+		//handle all the physics
+
+		function update(){
+			//Try to shoot another bullet
+			if(cooldown > 0) {
+				cooldown -= 1;
+			} else {
+				cooldown = 10;
+				shoot(gun);
+				console.log("called shoot(gun)")
+			}
+
+			//Do physics for bullets
+			//Update positions for speed
+			for(var i = 0; i < bullets.length; i++)
+			{
+				bullets[i].speed += bullets[i].accel;
+				bullets[i].xpos += bullets[i].speed*Math.cos(bullets[i].direction);
+				bullets[i].ypos -= bullets[i].speed*Math.sin(bullets[i].direction);
+			}
+			//Check for collusions with wall or ship
+			for(var i = 0; i < bullets.length; i++)
+			{
+				var b = bullets[i];
+				if(bullets[i].xpos <15 || bullets[i] > c.width - 15)
+					{
+						bullets.splice(i,1);
+						i -= 1;
+						continue;
+					}
+				if(bullets[i].ypos <15 || bullets[i].ypos > c.height - 15)
+				{
+					bullets.splice(i,1);
+					i -= 1;
+					continue;
+				}
+				var dist = (b.xpos-ship.xpos)*(b.xpos-ship.xpos)+(b.ypos-ship.ypos)*(b.ypos-ship.ypos);
+				if(dist < 225)
+				{
+					bullets.splice(i,1);
+					i -= 1;
+				}
+			}
+
+
+
+			//Add force to the body
+			var vship = ship.speed;
+			var tdx= 0; var tdy = 0;
+			if(d){tdx+=1;} if(a){tdx -= 1;}
+			if(w){tdy-=1;} if(s){tdy+=1;}
+			if(tdx*tdx+tdy*tdy > 0) {
+				tdx /= Math.sqrt(tdx*tdx+tdy*tdy);
+				tdy /= Math.sqrt(tdx*tdx+tdy*tdy);
+			}
+			var vx = vship*tdx;
+			var vy = vship*tdy;
+			ship.xpos += vx;
+			ship.ypos += vy;
+
+
+			redraw();
+
+		}
+
+		//Delete everything, clear the canvas
+
+		function reset()
+		{
+			asteroids = [];
+
+			redraw();
+		}
+
+
+		</script>
+
+	</body>
+</html>
