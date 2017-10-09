@@ -10,7 +10,7 @@
 			<input onclick="startstop()" type="button" value="Start" id="myButton1" />
 		</p>
 
-		<canvas id="myCanvas" width="800" height="500"> </canvas>
+		<canvas id="myCanvas" width="800" height="500" onmousemove="findMouse(event)" > </canvas>
 		<h3 id = "MakeshiftConsole">Let's see</h3>
 		<h3 id = "MakeshiftConsole2">Let's see</h3>
 		<h3 id = "MouseCoords"> (0, 0) </h3>
@@ -69,28 +69,47 @@
 			return a; 
 		}
 
+		function findMouse(e)
+		{
+			mouseX = e.clientX - rect.left;
+			mouseY = e.clientY - rect.top; 
+			//document.getElementById("MouseCoords").innerHTML = "("+mouseX+", "+mouseY+")";
+		}
+		
+		function mouseDown()
+		{
+			mousedown = true;		
+			console.log(vertices);
+			if(running == false) {
+				vertices[vertices.length] = new Vector(mouseX, mouseY);
+				drawVertices();
+				for(var i = 0; i < 40; i ++) {
+					points[i] = new Vector(mouseX, mouseY); 
+				}
+			}	
+		}
+		
+		function mouseUp()
+		{
+			mousedown = false;
+		}
+
 		var running = false;
 		var iterator;
 
 		var c = document.getElementById("myCanvas");
+		c.addEventListener("mousedown", mouseDown, false);
+		c.addEventListener("mouseup", mouseUp, false);
 		var ctx = c.getContext("2d");
 		ctx.strokeStyle = "#000000";
 		var rect = c.getBoundingClientRect();
 
-		var points = [new Vector(330, 75)];
-		for(var i = 0; i < 40; i ++) {
-			points[i] = new Vector(330, 75); 
-		}
-		var vertices = [new Vector(330, 75), new Vector(500, 45), new Vector(360, 190), new Vector(500, 330), new Vector(335, 300)];
-		vertices.place = 1;
-		var counter = 0; 
-		ctx.beginPath();
-		ctx.moveTo(vertices[0].x, vertices[0].y);
-		for(var i = 1; i < vertices.length; i++) {
-			ctx.lineTo(vertices[i].x, vertices[i].y);
-		}
-		ctx.closePath();
-		ctx.stroke();
+		var mouseX = 25; 
+		var mouseY = 25;
+		var points = [];
+		
+		var vertices = [];
+		
 		//Manage whether the update event is being called
 		function startstop()
 		{
@@ -114,6 +133,17 @@
 				ctx.arc(points[i].x, points[i].y, 0.01,0,2*Math.PI);
 				ctx.stroke();
 			}
+		}
+
+		function drawVertices() {
+			ctx.clearRect(0,0,c.width,c.height);
+			ctx.beginPath();
+			ctx.moveTo(vertices[0].x, vertices[0].y);
+			for(var i = 1; i < vertices.length; i++) {
+				ctx.lineTo(vertices[i].x, vertices[i].y);
+			}
+			ctx.closePath();
+			ctx.stroke();
 		}
 
 		//handle all the physics
